@@ -2,6 +2,7 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import connectDB from "./config/db.js";
@@ -49,11 +50,16 @@ app.use("/api/hod", hodRoutes);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const frontendDistPath = path.join(__dirname, "../frontend/dist");
 
-if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+if (process.env.NODE_ENV === "production" && fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
   app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+    res.sendFile(path.join(frontendDistPath, "index.html"));
+  });
+} else if (process.env.NODE_ENV === "production") {
+  app.get("/", (req, res) => {
+    res.send("Leave Management API is running");
   });
 }
 

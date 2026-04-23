@@ -114,6 +114,7 @@ export default function StudentDashboard() {
       <div className="bg-white shadow p-4 rounded">
         <p><b>Name:</b> {data.student?.name}</p>
         <p><b>Department:</b> {data.student?.department?.name}</p>
+        <p><b>Year:</b> {data.student?.year}</p>
       </div>
 
       {/* ================= ALERT ================= */}

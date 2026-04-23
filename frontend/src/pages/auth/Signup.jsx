@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 import api from "../../services/api";
 
 const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
@@ -29,20 +30,20 @@ export default function Signup() {
     setError("");
 
     if (!data.role || !data.userId || !data.name || !data.email || !data.password || !data.department) {
-      setError("Please fill all required fields");
+      toast.error("Please fill all required fields");
       return;
     }
 
     // ✅ Year required for Student & Staff
     if ((data.role === "student" || data.role === "staff") && !data.year) {
-      setError("Please select year");
+      toast.error("Please select year");
       return;
     }
 
     setLoading(true);
     try {
       await api.post("/auth/signup", data);
-      alert("Signup successful");
+      toast.success("Signup successful");
 
       setData({
         role: "student",
@@ -55,7 +56,7 @@ export default function Signup() {
         year: "",
       });
     } catch (err) {
-      setError(err.response?.data?.message || "Signup failed");
+      toast.error(err.response?.data?.message || "Signup failed");
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import api from "../../services/api";
 
 export default function Login() {
@@ -30,9 +31,10 @@ export default function Login() {
       else if (res.data.role === "staff") navigate("/staff");
       else navigate("/student");
 
+      toast.success("Login successful");
     } catch (err) {
       console.error(err);
-      setError(err.response?.data?.message || "Invalid username or password");
+      toast.error(err.response?.data?.message || "Invalid username or password");
     } finally {
       setLoading(false);
     }

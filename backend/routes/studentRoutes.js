@@ -3,6 +3,8 @@ import {
   applyStudentLeave,
   getStudentLeaves,
   getStudentDashboard,
+  cancelStudentLeave,
+  getStudentNotifications
 } from "../controllers/studentController.js";
 
 import {
@@ -31,6 +33,20 @@ router.get(
   authMiddleware,
   studentMiddleware,
   getStudentLeaves
+);
+
+router.delete(
+  "/leave/:id",
+  authMiddleware,
+  studentMiddleware,
+  cancelStudentLeave
+);
+
+router.get(
+  "/notifications",
+  authMiddleware,
+  studentMiddleware,
+  getStudentNotifications
 );
 
 export default router;

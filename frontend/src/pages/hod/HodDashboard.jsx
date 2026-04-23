@@ -1,20 +1,31 @@
 import { useEffect, useState, useCallback } from "react";
+import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import api from "../../services/api";
+
+const COLORS = ['#10B981', '#EF4444', '#F59E0B']; // Approved, Rejected, Pending
 
 export default function HodDashboard() {
   const [data, setData] = useState(null);
   const [semester, setSemester] = useState(null);
+  const [stats, setStats] = useState(null);
 
   const [pages, setPages] = useState({
     sp: 1, stp: 1, shp: 1, sthp: 1
   });
 
   const fetchData = useCallback(async () => {
-    const res = await api.get(
-      `/hod/dashboard?sp=${pages.sp}&stp=${pages.stp}&shp=${pages.shp}&sthp=${pages.sthp}`
-    );
-    setData(res.data);
-    setSemester(res.data.semester);
+    try {
+      const res = await api.get(
+        `/hod/dashboard?sp=${pages.sp}&stp=${pages.stp}&shp=${pages.shp}&sthp=${pages.sthp}`
+      );
+      setData(res.data);
+      setSemester(res.data.semester);
+
+      const statsRes = await api.get("/hod/stats");
+      setStats(statsRes.data);
+    } catch (err) {
+      console.error(err);
+    }
   }, [pages]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -30,7 +41,46 @@ export default function HodDashboard() {
     }
   };
 
-  if (!data) return <p>Loading...</p>;
+  const bulkApprove = async (leaveIds) => {
+    if (!window.confirm(`Are you sure you want to approve ${leaveIds.length} leave(s)?`)) return;
+    try {
+      const response = await api.put("/hod/leave/bulk-approve", { leaveIds });
+      alert(response.data.message || "Leaves approved successfully");
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || "Error bulk approving leaves");
+    }
+  };
+
+  const downloadCSV = () => {
+    if (!stats || !stats.leaves) return;
+    
+    const headers = ["Name", "Role", "From Date", "To Date", "Total Days", "Reason", "Status"];
+    
+    const rows = stats.leaves.map(l => {
+      const name = l.student?.name || l.staff?.name || "Unknown";
+      const role = l.student ? "Student" : "Staff";
+      const reason = (l.reason || "").replace(/,/g, " "); // prevent csv comma break
+      return `"${name}","${role}","${new Date(l.fromDate).toLocaleDateString()}","${new Date(l.toDate).toLocaleDateString()}",${l.totalDays},"${reason}","${l.status}"`;
+    });
+    
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `leave_report_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const pieData = stats ? [
+    { name: "Approved", value: stats.approved },
+    { name: "Rejected", value: stats.rejected },
+    { name: "Pending", value: stats.pending },
+  ] : [];
+
+  if (!data) return <p className="text-center mt-10">Loading Dashboard...</p>;
 
   const fmt = d => new Date(d).toLocaleDateString("en-IN");
 
@@ -49,7 +99,17 @@ export default function HodDashboard() {
   return (
     <div className="p-6 space-y-8">
 
-      <h1 className="text-3xl font-bold">HOD Dashboard</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">HOD Dashboard</h1>
+        <button 
+          onClick={downloadCSV}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded shadow transition"
+        >
+          Download CSV Report
+        </button>
+      </div>
+
+
 
       {/* ✅ HOD INFO CARD */}
 
@@ -74,6 +134,7 @@ export default function HodDashboard() {
         rows={data.studentLeaves}
         nameKey="student"
         decide={decide}
+        bulkApprove={bulkApprove}
         fmt={fmt}
         getStatusBadge={getStatusBadge}
         page={pages.sp}
@@ -85,6 +146,7 @@ export default function HodDashboard() {
         rows={data.staffLeaves}
         nameKey="staff"
         decide={decide}
+        bulkApprove={bulkApprove}
         fmt={fmt}
         getStatusBadge={getStatusBadge}
         page={pages.stp}
@@ -117,14 +179,45 @@ export default function HodDashboard() {
 
 /* ---------- TABLE ---------- */
 
-function Table({ title, rows, nameKey, decide, fmt, getStatusBadge, page, setPage, total }) {
+function Table({ title, rows, nameKey, decide, bulkApprove, fmt, getStatusBadge, page, setPage, total }) {
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  useEffect(() => { setSelectedIds([]); }, [rows]);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) setSelectedIds(rows.map(r => r._id));
+    else setSelectedIds([]);
+  };
+
+  const handleSelectOne = (e, id) => {
+    if (e.target.checked) setSelectedIds([...selectedIds, id]);
+    else setSelectedIds(selectedIds.filter(selId => selId !== id));
+  };
+
   return (
     <div className="bg-white shadow p-4 rounded">
-      <h2 className="font-bold text-xl mb-3">{title}</h2>
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="font-bold text-xl">{title}</h2>
+        {selectedIds.length > 0 && (
+          <button 
+            onClick={() => bulkApprove(selectedIds)}
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-semibold shadow transition"
+          >
+            Bulk Approve Selected ({selectedIds.length})
+          </button>
+        )}
+      </div>
 
       <table className="w-full border">
         <thead className="bg-gray-200">
           <tr>
+            <th className="border p-2 w-10 text-center">
+              <input 
+                type="checkbox" 
+                onChange={handleSelectAll} 
+                checked={rows.length > 0 && selectedIds.length === rows.length}
+              />
+            </th>
             <th className="border p-2">Name</th>
             <th className="border p-2">From</th>
             <th className="border p-2">To</th>
@@ -136,30 +229,41 @@ function Table({ title, rows, nameKey, decide, fmt, getStatusBadge, page, setPag
         </thead>
 
         <tbody>
-          {rows.map(l => (
-            <tr key={l._id}>
-              <td className="border p-2">{l[nameKey]?.name}</td>
-              <td className="border p-2">{fmt(l.fromDate)}</td>
-              <td className="border p-2">{fmt(l.toDate)}</td>
-              <td className="border p-2 text-center">{l.totalDays}</td>
-              <td className="border p-2">{l.reason}</td>
-              <td className="border p-2">
-                <span className={`px-2 py-1 rounded text-sm font-semibold ${getStatusBadge(l.status)}`}>
-                  {l.status}
-                </span>
-              </td>
-              <td className="border p-2 flex gap-2">
-                <button onClick={() => decide(l._id, "Approved-HOD")}
-                  className="bg-green-600 text-white px-2 py-1 rounded text-sm hover:bg-green-700">
-                  Approve
-                </button>
-                <button onClick={() => decide(l._id, "Rejected-HOD")}
-                  className="bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700">
-                  Reject
-                </button>
-              </td>
-            </tr>
-          ))}
+          {rows.length === 0 ? (
+            <tr><td colSpan="8" className="p-4 text-center text-gray-500">No requests found.</td></tr>
+          ) : (
+            rows.map(l => (
+              <tr key={l._id}>
+                <td className="border p-2 text-center">
+                  <input 
+                    type="checkbox" 
+                    onChange={(e) => handleSelectOne(e, l._id)}
+                    checked={selectedIds.includes(l._id)}
+                  />
+                </td>
+                <td className="border p-2">{l[nameKey]?.name}</td>
+                <td className="border p-2">{fmt(l.fromDate)}</td>
+                <td className="border p-2">{fmt(l.toDate)}</td>
+                <td className="border p-2 text-center">{l.totalDays}</td>
+                <td className="border p-2">{l.reason}</td>
+                <td className="border p-2">
+                  <span className={`px-2 py-1 rounded text-sm font-semibold ${getStatusBadge(l.status)}`}>
+                    {l.status}
+                  </span>
+                </td>
+                <td className="border p-2 flex gap-2">
+                  <button onClick={() => decide(l._id, "Approved-HOD")}
+                    className="bg-green-600 text-white px-2 py-1 rounded text-sm hover:bg-green-700">
+                    Approve
+                  </button>
+                  <button onClick={() => decide(l._id, "Rejected-HOD")}
+                    className="bg-red-600 text-white px-2 py-1 rounded text-sm hover:bg-red-700">
+                    Reject
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
 

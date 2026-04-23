@@ -147,6 +147,44 @@ export const getHodDashboard = async (req, res) => {
   }
 };
 
+/* ================= STATS ================= */
+
+export const getHodStats = async (req, res) => {
+  try {
+    const hod = await User.findById(req.user._id).populate("department");
+    if (!hod || !hod.department) {
+      return res.status(400).json({ message: "HOD department not found" });
+    }
+
+    const dept = hod.department._id;
+    const semester = await Semester.findOne({ active: true });
+
+    const query = {
+      department: dept,
+      semester: semester?._id,
+    };
+
+    const leaves = await Leave.find(query)
+      .populate("student", "name")
+      .populate("staff", "name");
+
+    let approved = 0;
+    let rejected = 0;
+    let pending = 0;
+
+    leaves.forEach(l => {
+      if (l.status === "Approved-HOD" || l.status === "Approved-Staff") approved++;
+      else if (l.status === "Rejected-HOD" || l.status === "Rejected-Staff") rejected++;
+      else pending++;
+    });
+
+    res.json({ approved, rejected, pending, total: leaves.length, leaves });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to fetch stats" });
+  }
+};
+
 /* ================= APPROVE ================= */
 
 export const approveLeave = async (req, res) => {
@@ -286,5 +324,47 @@ export const approveLeave = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
+  }
+};
+
+/* ================= BULK APPROVE ================= */
+
+export const bulkApproveLeaves = async (req, res) => {
+  try {
+    const { leaveIds } = req.body;
+    
+    if (!leaveIds || !Array.isArray(leaveIds) || leaveIds.length === 0) {
+      return res.status(400).json({ message: "No leave IDs provided" });
+    }
+
+    // Verify HOD
+    const hod = await User.findById(req.user._id).populate("department");
+    if (!hod || !hod.department) {
+      return res.status(403).json({ message: "Unauthorized or no department" });
+    }
+
+    // Update all matching leaves
+    const result = await Leave.updateMany(
+      { 
+        _id: { $in: leaveIds },
+        department: hod.department._id,
+        status: "Pending-HOD"
+      },
+      { 
+        $set: { 
+          status: "Approved-HOD",
+          reviewedByHod: req.user._id
+        } 
+      }
+    );
+
+    res.json({ 
+      message: `Successfully bulk approved ${result.modifiedCount} leave(s)`,
+      modifiedCount: result.modifiedCount
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to bulk approve leaves" });
   }
 };

@@ -12,6 +12,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import studentRoutes from "./routes/studentRoutes.js";
 import staffRoutes from "./routes/staffRoutes.js";
 import hodRoutes from "./routes/hodRoutes.js";
+import publicRoutes from "./routes/publicRoutes.js";
 
 dotenv.config();
 connectDB();
@@ -50,6 +51,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/staff", staffRoutes);
 app.use("/api/hod", hodRoutes);
+app.use("/api/public", publicRoutes);
 
 // Serve frontend
 const __filename = fileURLToPath(import.meta.url);

@@ -1,4 +1,7 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+import html2pdf from "html2pdf.js";
+import QRCode from "qrcode";
 import api from "../../services/api";
 
 export default function StudentDashboard() {
@@ -41,7 +44,7 @@ export default function StudentDashboard() {
 
   const applyLeave = async () => {
     if (!leaveForm.fromDate || !leaveForm.toDate || !leaveForm.reason) {
-      return alert("Please fill all fields");
+      return toast.error("Please fill all fields");
     }
 
     try {
@@ -50,12 +53,12 @@ export default function StudentDashboard() {
       if (res.data.alert) {
         if (res.data.alertType === "threshold") {
           // Show threshold alert - continues workflow
-          alert(res.data.message);
+          toast.error(res.data.message, { duration: 10000 });
           setLeaveAlert(res.data.message);
           setTimeout(() => setLeaveAlert(""), 10000);
         } else if (res.data.alertType === "exceeded") {
           // Show exceeded limit alert
-          alert(res.data.message);
+          toast.error(res.data.message, { duration: 10000 });
           setLeaveAlert(res.data.message);
           setTimeout(() => setLeaveAlert(""), 10000);
         } else {
@@ -63,13 +66,24 @@ export default function StudentDashboard() {
           setTimeout(() => setLeaveAlert(""), 8000);
         }
       } else {
-        alert("Leave applied successfully");
+        toast.success("Leave applied successfully");
       }
 
       setLeaveForm({ fromDate: "", toDate: "", reason: "" });
       loadDashboard(page);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to apply leave");
+      toast.error(err.response?.data?.message || "Failed to apply leave");
+    }
+  };
+
+  const cancelLeave = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel this leave request?")) return;
+    try {
+      await api.delete(`/student/leave/${id}`);
+      toast.success("Leave request cancelled");
+      loadDashboard(page);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to cancel leave");
     }
   };
 
@@ -85,6 +99,56 @@ export default function StudentDashboard() {
       "Rejected-HOD": "bg-red-100 text-red-800",
     };
     return statusStyles[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const generateGatePass = async (leave) => {
+    const verifyUrl = `${window.location.origin}/verify/${leave._id}`;
+    let qrCodeBase64 = "";
+    try {
+      // Generate QR Code as a base64 data URI
+      qrCodeBase64 = await QRCode.toDataURL(verifyUrl, { width: 120, margin: 1 });
+    } catch (err) {
+      console.error("Failed to generate QR", err);
+    }
+
+    const content = `
+      <div style="padding: 40px; font-family: sans-serif; border: 2px solid #333; max-width: 600px; margin: 0 auto; position: relative;">
+        <h1 style="text-align: center; color: #4F46E5; margin-bottom: 30px; letter-spacing: 1px;">OFFICIAL GATE PASS</h1>
+        
+        ${qrCodeBase64 ? `
+        <div style="position: absolute; top: 30px; right: 30px;">
+          <img src="${qrCodeBase64}" alt="QR Code" style="width: 90px; height: 90px; border: 1px solid #ccc; padding: 4px;" />
+          <p style="font-size: 10px; text-align: center; margin-top: 4px; color: #666;">Scan to Verify</p>
+        </div>
+        ` : ''}
+
+        <div style="border-bottom: 2px solid #ccc; margin-bottom: 20px;"></div>
+        <p style="font-size: 18px;"><strong>Student Name:</strong> ${data.student?.name}</p>
+        <p style="font-size: 18px;"><strong>Department:</strong> ${data.student?.department?.name}</p>
+        <p style="font-size: 18px;"><strong>Year:</strong> ${data.student?.year}</p>
+        <div style="border-bottom: 2px solid #ccc; margin-top: 20px; margin-bottom: 20px;"></div>
+        <h3 style="color: #333;">Leave Details:</h3>
+        <p style="font-size: 16px;"><strong>From:</strong> ${formatDate(leave.fromDate)}</p>
+        <p style="font-size: 16px;"><strong>To:</strong> ${formatDate(leave.toDate)}</p>
+        <p style="font-size: 16px;"><strong>Total Days:</strong> ${leave.totalDays}</p>
+        <p style="font-size: 16px;"><strong>Reason:</strong> ${leave.reason}</p>
+        <div style="border-bottom: 2px solid #ccc; margin-top: 20px; margin-bottom: 30px;"></div>
+        <div style="text-align: center;">
+          <h2 style="color: #10B981; border: 3px solid #10B981; display: inline-block; padding: 10px 20px; transform: rotate(-5deg); letter-spacing: 2px;">APPROVED BY HOD</h2>
+        </div>
+        <p style="text-align: center; margin-top: 40px; font-size: 14px; color: #666;">This is an automatically generated gate pass from the EduLeave System.</p>
+      </div>
+    `;
+
+    const opt = {
+      margin: 0.5,
+      filename: `GatePass_${data.student?.name}_${leave.fromDate.slice(0,10)}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(content).save();
   };
 
   if (loading) return <p className="text-center mt-10">Loading...</p>;
@@ -237,6 +301,7 @@ export default function StudentDashboard() {
                   <th className="border p-2">To</th>
                   <th className="border p-2">Reason</th>
                   <th className="border p-2">Status</th>
+                  <th className="border p-2">Action</th>
                 </tr>
               </thead>
 
@@ -254,6 +319,27 @@ export default function StudentDashboard() {
                       <span className={`px-3 py-1 rounded font-semibold text-sm ${getStatusBadge(l.status)}`}>
                         {l.status}
                       </span>
+                    </td>
+                    <td className="border p-2 text-center flex justify-center gap-2">
+                      {l.status === "Approved-HOD" && (
+                        <button
+                          onClick={() => generateGatePass(l)}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm transition font-medium shadow"
+                        >
+                          Gate Pass
+                        </button>
+                      )}
+                      {(l.status === "Pending-Staff" || l.status === "Pending-HOD") && (
+                        <button
+                          onClick={() => cancelLeave(l._id)}
+                          className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm transition font-medium shadow"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      {l.status !== "Approved-HOD" && l.status !== "Pending-Staff" && l.status !== "Pending-HOD" && (
+                        <span className="text-gray-400 text-sm italic">None</span>
+                      )}
                     </td>
                   </tr>
                 ))}

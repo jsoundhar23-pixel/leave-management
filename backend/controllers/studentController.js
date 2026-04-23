@@ -200,3 +200,44 @@ export const applyStudentLeave = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+/* ================= CANCEL STUDENT LEAVE ================= */
+export const cancelStudentLeave = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const leave = await Leave.findById(id);
+
+    if (!leave) {
+      return res.status(404).json({ message: "Leave not found" });
+    }
+
+    if (leave.student.toString() !== req.user.id) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    if (leave.status !== "Pending-Staff" && leave.status !== "Pending-HOD") {
+      return res.status(400).json({ message: "Can only cancel pending leaves" });
+    }
+
+    await Leave.findByIdAndDelete(id);
+    res.json({ message: "Leave request cancelled successfully" });
+  } catch {
+    res.status(500).json({ message: "Failed to cancel leave" });
+  }
+};
+
+/* ================= NOTIFICATIONS ================= */
+export const getStudentNotifications = async (req, res) => {
+  try {
+    const leaves = await Leave.find({ 
+      student: req.user.id,
+      status: { $in: ["Approved-HOD", "Rejected-HOD", "Rejected-Staff"] }
+    })
+    .sort({ updatedAt: -1 })
+    .limit(5);
+    
+    res.json(leaves);
+  } catch {
+    res.status(500).json({ message: "Failed to fetch notifications" });
+  }
+};

@@ -1,3 +1,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply transition-colors duration-300;
+  }
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+}
+
+/* Global Dark Mode Overrides (Outside of Tailwind layer to prevent circular deps) */
+.dark .bg-white {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .bg-gray-50, .dark .bg-blue-50, .dark .bg-yellow-100, .dark .bg-green-100 {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .text-gray-800, .dark .text-gray-900 {
+  color: #f3f4f6 !important;
+}
+
+.dark .border {
+  border-color: #374151 !important;
+}
+
+.dark .bg-gray-200, .dark .bg-gray-100 {
+  background-color: #374151 !important;
+}
+
+.dark th {
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+}
+
+.dark td {
+  border-color: #374151 !important;
+}
+
+.dark input, .dark select, .dark textarea {
+  background-color: #374151 !important;
+  color: #ffffff !important;
+  border-color: #4b5563 !important;
+}

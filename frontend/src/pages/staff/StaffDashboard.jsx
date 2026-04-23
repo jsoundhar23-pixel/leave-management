@@ -1,4 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
+import html2pdf from "html2pdf.js";
+import QRCode from "qrcode";
 import api from "../../services/api";
 
 export default function StaffDashboard() {
@@ -48,6 +50,55 @@ export default function StaffDashboard() {
           (1000 * 60 * 60 * 24)
       ) + 1
     );
+  };
+
+  const generateGatePass = async (leave) => {
+    const verifyUrl = `${window.location.origin}/verify/${leave._id}`;
+    let qrCodeBase64 = "";
+    try {
+      // Generate QR Code as a base64 data URI
+      qrCodeBase64 = await QRCode.toDataURL(verifyUrl, { width: 120, margin: 1 });
+    } catch (err) {
+      console.error("Failed to generate QR", err);
+    }
+
+    const content = `
+      <div style="padding: 40px; font-family: sans-serif; border: 2px solid #333; max-width: 600px; margin: 0 auto; position: relative;">
+        <h1 style="text-align: center; color: #4F46E5; margin-bottom: 30px; letter-spacing: 1px;">OFFICIAL GATE PASS</h1>
+        
+        ${qrCodeBase64 ? `
+        <div style="position: absolute; top: 30px; right: 30px;">
+          <img src="${qrCodeBase64}" alt="QR Code" style="width: 90px; height: 90px; border: 1px solid #ccc; padding: 4px;" />
+          <p style="font-size: 10px; text-align: center; margin-top: 4px; color: #666;">Scan to Verify</p>
+        </div>
+        ` : ''}
+
+        <div style="border-bottom: 2px solid #ccc; margin-bottom: 20px;"></div>
+        <p style="font-size: 18px;"><strong>Staff Name:</strong> ${profile?.name}</p>
+        <p style="font-size: 18px;"><strong>Department:</strong> ${profile?.department?.name}</p>
+        <div style="border-bottom: 2px solid #ccc; margin-top: 20px; margin-bottom: 20px;"></div>
+        <h3 style="color: #333;">Leave Details:</h3>
+        <p style="font-size: 16px;"><strong>From:</strong> ${formatDate(leave.fromDate)}</p>
+        <p style="font-size: 16px;"><strong>To:</strong> ${formatDate(leave.toDate)}</p>
+        <p style="font-size: 16px;"><strong>Total Days:</strong> ${leave.totalDays}</p>
+        <p style="font-size: 16px;"><strong>Reason:</strong> ${leave.reason}</p>
+        <div style="border-bottom: 2px solid #ccc; margin-top: 20px; margin-bottom: 30px;"></div>
+        <div style="text-align: center;">
+          <h2 style="color: #10B981; border: 3px solid #10B981; display: inline-block; padding: 10px 20px; transform: rotate(-5deg); letter-spacing: 2px;">APPROVED BY HOD</h2>
+        </div>
+        <p style="text-align: center; margin-top: 40px; font-size: 14px; color: #666;">This is an automatically generated gate pass from the EduLeave System.</p>
+      </div>
+    `;
+
+    const opt = {
+      margin: 0.5,
+      filename: `GatePass_${profile?.name}_${leave.fromDate.slice(0,10)}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(content).save();
   };
 
   /* ================= LOAD DATA ================= */
@@ -407,6 +458,7 @@ export default function StaffDashboard() {
               <th className="border p-2">Days</th>
               <th className="border p-2">Reason</th>
               <th className="border p-2">Status</th>
+              <th className="border p-2">Gate Pass</th>
             </tr>
           </thead>
           <tbody>
@@ -424,8 +476,22 @@ export default function StaffDashboard() {
                 <td className="border p-2">
                   {l.reason}
                 </td>
-                <td className="border p-2 font-semibold">
-                  {l.status}
+                <td className="border p-2">
+                  <span className={`px-3 py-1 rounded font-semibold text-sm ${getStatusBadge(l.status)}`}>
+                    {l.status}
+                  </span>
+                </td>
+                <td className="border p-2 text-center">
+                  {l.status === "Approved-HOD" ? (
+                    <button
+                      onClick={() => generateGatePass(l)}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-sm transition font-medium shadow"
+                    >
+                      Download PDF
+                    </button>
+                  ) : (
+                    <span className="text-gray-400 text-sm italic">Not Available</span>
+                  )}
                 </td>
               </tr>
             ))}

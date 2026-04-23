@@ -3,6 +3,8 @@ import {
   getHodProfile,
   getHodDashboard,
   approveLeave,
+  bulkApproveLeaves,
+  getHodStats,
 } from "../controllers/hodController.js";
 
 import {
@@ -20,12 +22,28 @@ router.get(
   getHodDashboard
 );
 
+// Stats
+router.get(
+  "/stats",
+  authMiddleware,
+  hodMiddleware,
+  getHodStats
+);
+
 // Profile
 router.get(
   "/profile",
   authMiddleware,
   hodMiddleware,
   getHodProfile
+);
+
+// Bulk Approve (student + staff)
+router.put(
+  "/leave/bulk-approve",
+  authMiddleware,
+  hodMiddleware,
+  bulkApproveLeaves
 );
 
 // Approve / Reject (student + staff)

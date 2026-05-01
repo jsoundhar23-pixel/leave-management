@@ -41,16 +41,6 @@ export default function HodDashboard() {
     }
   };
 
-  const bulkApprove = async (leaveIds) => {
-    if (!window.confirm(`Are you sure you want to approve ${leaveIds.length} leave(s)?`)) return;
-    try {
-      const response = await api.put("/hod/leave/bulk-approve", { leaveIds });
-      alert(response.data.message || "Leaves approved successfully");
-      fetchData();
-    } catch (err) {
-      alert(err.response?.data?.message || "Error bulk approving leaves");
-    }
-  };
 
   const downloadCSV = () => {
     if (!stats || !stats.leaves) return;
@@ -134,7 +124,6 @@ export default function HodDashboard() {
         rows={data.studentLeaves}
         nameKey="student"
         decide={decide}
-        bulkApprove={bulkApprove}
         fmt={fmt}
         getStatusBadge={getStatusBadge}
         page={pages.sp}
@@ -146,7 +135,6 @@ export default function HodDashboard() {
         rows={data.staffLeaves}
         nameKey="staff"
         decide={decide}
-        bulkApprove={bulkApprove}
         fmt={fmt}
         getStatusBadge={getStatusBadge}
         page={pages.stp}
@@ -179,45 +167,16 @@ export default function HodDashboard() {
 
 /* ---------- TABLE ---------- */
 
-function Table({ title, rows, nameKey, decide, bulkApprove, fmt, getStatusBadge, page, setPage, total }) {
-  const [selectedIds, setSelectedIds] = useState([]);
-
-  useEffect(() => { setSelectedIds([]); }, [rows]);
-
-  const handleSelectAll = (e) => {
-    if (e.target.checked) setSelectedIds(rows.map(r => r._id));
-    else setSelectedIds([]);
-  };
-
-  const handleSelectOne = (e, id) => {
-    if (e.target.checked) setSelectedIds([...selectedIds, id]);
-    else setSelectedIds(selectedIds.filter(selId => selId !== id));
-  };
-
+function Table({ title, rows, nameKey, decide, fmt, getStatusBadge, page, setPage, total }) {
   return (
     <div className="bg-white shadow p-4 rounded">
       <div className="flex justify-between items-center mb-3">
         <h2 className="font-bold text-xl">{title}</h2>
-        {selectedIds.length > 0 && (
-          <button 
-            onClick={() => bulkApprove(selectedIds)}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm font-semibold shadow transition"
-          >
-            Bulk Approve Selected ({selectedIds.length})
-          </button>
-        )}
       </div>
 
       <table className="w-full border">
         <thead className="bg-gray-200">
           <tr>
-            <th className="border p-2 w-10 text-center">
-              <input 
-                type="checkbox" 
-                onChange={handleSelectAll} 
-                checked={rows.length > 0 && selectedIds.length === rows.length}
-              />
-            </th>
             <th className="border p-2">Name</th>
             <th className="border p-2">From</th>
             <th className="border p-2">To</th>
@@ -230,17 +189,10 @@ function Table({ title, rows, nameKey, decide, bulkApprove, fmt, getStatusBadge,
 
         <tbody>
           {rows.length === 0 ? (
-            <tr><td colSpan="8" className="p-4 text-center text-gray-500">No requests found.</td></tr>
+            <tr><td colSpan="7" className="p-4 text-center text-gray-500">No requests found.</td></tr>
           ) : (
             rows.map(l => (
               <tr key={l._id}>
-                <td className="border p-2 text-center">
-                  <input 
-                    type="checkbox" 
-                    onChange={(e) => handleSelectOne(e, l._id)}
-                    checked={selectedIds.includes(l._id)}
-                  />
-                </td>
                 <td className="border p-2">{l[nameKey]?.name}</td>
                 <td className="border p-2">{fmt(l.fromDate)}</td>
                 <td className="border p-2">{fmt(l.toDate)}</td>

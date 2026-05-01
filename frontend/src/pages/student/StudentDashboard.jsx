@@ -294,7 +294,8 @@ export default function StudentDashboard() {
           <p>No leave requests</p>
         ) : (
           <>
-            <table className="w-full border">
+            <div className="overflow-x-auto">
+              <table className="w-full border min-w-[600px]">
               <thead>
                 <tr className="bg-gray-200">
                   <th className="border p-2">From</th>
@@ -345,6 +346,7 @@ export default function StudentDashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {/* PAGINATION */}
 

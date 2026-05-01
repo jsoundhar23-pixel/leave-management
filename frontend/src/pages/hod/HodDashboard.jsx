@@ -174,7 +174,8 @@ function Table({ title, rows, nameKey, decide, fmt, getStatusBadge, page, setPag
         <h2 className="font-bold text-xl">{title}</h2>
       </div>
 
-      <table className="w-full border">
+      <div className="overflow-x-auto">
+        <table className="w-full border min-w-[700px]">
         <thead className="bg-gray-200">
           <tr>
             <th className="border p-2">Name</th>
@@ -218,6 +219,7 @@ function Table({ title, rows, nameKey, decide, fmt, getStatusBadge, page, setPag
           )}
         </tbody>
       </table>
+      </div>
 
       <Pager page={page} setPage={setPage} total={total} />
     </div>
@@ -231,7 +233,8 @@ function History({ title, rows, nameKey, fmt, getStatusBadge, page, setPage, tot
     <div className="bg-white shadow p-4 rounded">
       <h2 className="font-bold text-xl mb-3">{title}</h2>
 
-      <table className="w-full border">
+      <div className="overflow-x-auto">
+        <table className="w-full border min-w-[600px]">
         <thead className="bg-gray-200">
           <tr>
             <th className="border p-2">Name</th>
@@ -258,6 +261,7 @@ function History({ title, rows, nameKey, fmt, getStatusBadge, page, setPage, tot
           ))}
         </tbody>
       </table>
+      </div>
 
       <Pager page={page} setPage={setPage} total={total} />
     </div>

@@ -258,7 +258,8 @@ export default function StaffDashboard() {
           <p>No pending student leave requests</p>
         ) : (
           <>
-            <table className="w-full border">
+            <div className="overflow-x-auto">
+              <table className="w-full border min-w-[700px]">
               <thead className="bg-yellow-100">
                 <tr>
                   <th className="border p-2">Student</th>
@@ -328,6 +329,7 @@ export default function StaffDashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {/* STUDENT PAGINATION */}
             <div className="flex justify-center gap-4 mt-4">
@@ -373,7 +375,8 @@ export default function StaffDashboard() {
           <p>No approved student leave records</p>
         ) : (
           <>
-            <table className="w-full border">
+            <div className="overflow-x-auto">
+              <table className="w-full border min-w-[700px]">
               <thead className="bg-green-100">
                 <tr>
                   <th className="border p-2">Student</th>
@@ -409,6 +412,7 @@ export default function StaffDashboard() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {/* APPROVED PAGINATION */}
             <div className="flex justify-center gap-4 mt-4">
@@ -450,7 +454,8 @@ export default function StaffDashboard() {
           My Leave History
         </h3>
 
-        <table className="w-full border">
+        <div className="overflow-x-auto">
+          <table className="w-full border min-w-[600px]">
           <thead className="bg-gray-100">
             <tr>
               <th className="border p-2">From</th>
@@ -497,6 +502,7 @@ export default function StaffDashboard() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {/* STAFF PAGINATION */}
         <div className="flex justify-center gap-4 mt-4">

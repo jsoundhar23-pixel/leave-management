@@ -42,4 +42,25 @@ router.get("/verify/:id", async (req, res) => {
   }
 });
 
+import { sendEmail } from "../utils/sendEmail.js";
+
+router.get("/test-email", async (req, res) => {
+  try {
+    const info = await sendEmail(
+      process.env.EMAIL_USER,
+      "Render Test Email",
+      "This is a test from the Render deployment to debug the email configuration."
+    );
+    res.json({ success: true, message: "Email sent successfully", info });
+  } catch (err) {
+    res.status(500).json({ 
+      success: false, 
+      message: "Email sending failed", 
+      error: err.message, 
+      code: err.code,
+      response: err.response
+    });
+  }
+});
+
 export default router;

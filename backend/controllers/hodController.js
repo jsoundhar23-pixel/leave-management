@@ -343,24 +343,62 @@ export const bulkApproveLeaves = async (req, res) => {
       return res.status(403).json({ message: "Unauthorized or no department" });
     }
 
-    // Update all matching leaves
-    const result = await Leave.updateMany(
-      { 
-        _id: { $in: leaveIds },
-        department: hod.department._id,
-        status: "Pending-HOD"
-      },
-      { 
-        $set: { 
-          status: "Approved-HOD",
-          reviewedByHod: req.user._id
-        } 
+    // Fetch all matching leaves
+    const leavesToApprove = await Leave.find({
+      _id: { $in: leaveIds },
+      department: hod.department._id,
+      status: "Pending-HOD"
+    }).populate("student", "name email department year").populate("staff", "name email").populate("department", "name");
+
+    let modifiedCount = 0;
+
+    for (const leave of leavesToApprove) {
+      leave.status = "Approved-HOD";
+      leave.reviewedByHod = req.user._id;
+      await leave.save();
+      modifiedCount++;
+
+      // Send email to Student
+      if (leave.student && leave.student.email) {
+        try {
+          const message = buildLeaveMessage({
+            name: leave.student.name,
+            role: "Student",
+            department: leave.department?.name || "Unknown",
+            year: leave.student.year,
+            status: "Approved",
+            reason: leave.reason,
+            fromDate: leave.fromDate,
+            toDate: leave.toDate,
+          });
+          await sendEmail(leave.student.email, "✅ Your Leave Request Approved", message);
+        } catch (emailErr) {
+          console.error("Email sending error in bulk approve (Student):", emailErr);
+        }
       }
-    );
+
+      // Send email to Staff
+      if (leave.staff && leave.staff.email) {
+        try {
+          const message = buildLeaveMessage({
+            name: leave.staff.name,
+            role: "Staff",
+            department: leave.department?.name || "Unknown",
+            status: "Approved",
+            reason: leave.reason,
+            fromDate: leave.fromDate,
+            toDate: leave.toDate,
+          });
+          await sendEmail(leave.staff.email, "✅ Your Leave Request Approved", message);
+        } catch (emailErr) {
+          console.error("Email sending error in bulk approve (Staff):", emailErr);
+        }
+      }
+    }
 
     res.json({ 
-      message: `Successfully bulk approved ${result.modifiedCount} leave(s)`,
-      modifiedCount: result.modifiedCount
+      message: `Successfully bulk approved ${modifiedCount} leave(s) and sent emails`,
+      modifiedCount
     });
 
   } catch (err) {
